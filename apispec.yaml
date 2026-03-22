@@ -1,0 +1,228 @@
+openapi: '3.0.3'
+info:
+  title: Muslim Daily API
+  description: API MVP untuk jadwal sholat dan doa harian
+  version: '1.0.0'
+servers:
+  - url: http://localhost:3000
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Liveness check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/HealthResponse'
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Liveness check alias
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/HealthResponse'
+  /readyz:
+    get:
+      tags:
+        - Health
+      summary: Readiness check
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties:
+                          type: string
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /duas:
+    get:
+      tags:
+        - Duas
+      summary: List duas
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter dua by category
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Dua'
+  /duas/random:
+    get:
+      tags:
+        - Duas
+      summary: Get random dua
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Dua'
+        '404':
+          description: Dua data not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /prayer-times:
+    get:
+      tags:
+        - Prayer Times
+      summary: Get prayer times by city and date
+      parameters:
+        - name: city
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PrayerTime'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Prayer time not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        requestId:
+          type: string
+        errors:
+          type: object
+          additionalProperties: true
+    Dua:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        arabic:
+          type: string
+        latin:
+          type: string
+        translation:
+          type: string
+        category:
+          type: string
+    PrayerTimeSlots:
+      type: object
+      properties:
+        fajr:
+          type: string
+        dhuhr:
+          type: string
+        asr:
+          type: string
+        maghrib:
+          type: string
+        isha:
+          type: string
+    PrayerTime:
+      type: object
+      properties:
+        city:
+          type: string
+        date:
+          type: string
+          format: date
+        times:
+          $ref: '#/components/schemas/PrayerTimeSlots'
+    HealthResponse:
+      type: object
+      properties:
+        env:
+          type: string
+        database_configured:
+          type: boolean
