@@ -1,140 +1,177 @@
-# api-go-test
+# Muslim Daily API
 
-Boilerplate REST API sederhana dengan Go, PostgreSQL, `httprouter`, dan struktur layer `controller/service/repository`.
+API MVP sederhana untuk kebutuhan frontend Muslim Daily. Fokus utama saat ini:
 
-## Fitur Dasar
-- Public route untuk read endpoint
-- Protected route untuk write endpoint dengan `X-API-Key`
-- Health check: `/healthz` dan `/readyz`
-- Request ID di header `X-Request-ID`
-- Logging request dasar
-- Graceful shutdown
-- Konfigurasi via environment variable
-- Database migration command
+- `GET /prayer-times?city=jakarta&date=2026-03-23`
+- `GET /duas`
+- `GET /duas/random`
+- `GET /health`, `GET /healthz`, dan `GET /readyz`
 
-## Environment Variable
-- `APP_ENV`
-- `PORT`
-- `DB_DSN`
-- `API_KEY`
-- `READ_TIMEOUT`
-- `WRITE_TIMEOUT`
-- `IDLE_TIMEOUT`
-- `SHUTDOWN_TIMEOUT`
+Implementasi sekarang memakai PostgreSQL sebagai source of truth untuk data doa dan jadwal sholat.
 
-## Keterangan Route
-- `/healthz`
-  - Endpoint liveness check
-  - Dipakai untuk mengecek apakah service hidup
+## Stack
 
-- `/readyz`
-  - Endpoint readiness check
-  - Dipakai untuk mengecek apakah service siap menerima request, termasuk koneksi database
+- Go
+- `httprouter`
+- dotenv loader sederhana dari file `.env`
+- PostgreSQL
+- golang-migrate
 
-- `/api/`
-  - Prefix utama untuk endpoint API aplikasi
-  - Dipakai untuk endpoint resource public maupun protected
+## Response Format
 
-- `/api/data`
-  - Contoh resource bawaan di boilerplate ini
-  - Bisa diganti nanti menjadi resource utama seperti `/api/hijri`, `/api/calendar`, `/api/prayer-times`, dan lain-lain
+Semua endpoint mengembalikan JSON konsisten:
 
-## Default Endpoint
+```json
+{
+  "success": true,
+  "message": "Prayer times fetched successfully",
+  "data": {}
+}
+```
+
+Contoh error:
+
+```json
+{
+  "success": false,
+  "message": "validation failed",
+  "requestId": "abc123",
+  "errors": {
+    "date": "must use format YYYY-MM-DD"
+  }
+}
+```
+
+## Endpoint
+
+### `GET /duas`
+
+Mengambil semua doa. Mendukung filter kategori opsional:
+
+```text
+/duas?category=daily
+```
+
+Contoh response:
+
+```json
+{
+  "success": true,
+  "message": "Duas fetched successfully",
+  "data": [
+    {
+      "id": 1,
+      "title": "Doa Sebelum Makan",
+      "arabic": "اللهم بارك لنا فيما رزقتنا",
+      "latin": "Allahumma barik lana fima razaqtana",
+      "translation": "Ya Allah, berkahilah rezeki yang Engkau berikan kepada kami.",
+      "category": "daily"
+    }
+  ]
+}
+```
+
+### `GET /duas/random`
+
+Mengambil satu doa secara acak.
+
+### `GET /prayer-times`
+
+Query wajib:
+
+- `city`
+- `date` dengan format `YYYY-MM-DD`
+
+Contoh:
+
+```text
+/prayer-times?city=jakarta&date=2026-03-23
+```
+
+Contoh response:
+
+```json
+{
+  "success": true,
+  "message": "Prayer times fetched successfully",
+  "data": {
+    "city": "Jakarta",
+    "date": "2026-03-23",
+    "times": {
+      "fajr": "04:32",
+      "dhuhr": "12:01",
+      "asr": "15:15",
+      "maghrib": "18:05",
+      "isha": "19:15"
+    }
+  }
+}
+```
+
+### Health Check
+
+- `GET /health`
 - `GET /healthz`
-  - Mengecek apakah aplikasi hidup
-
 - `GET /readyz`
-  - Mengecek apakah aplikasi siap melayani request
-
-- `GET /api/data`
-  - Public endpoint untuk mengambil semua data
-
-- `GET /api/data/:dataId`
-  - Public endpoint untuk mengambil detail data
-
-- `POST /api/data`
-  - Protected endpoint untuk membuat data baru
-
-- `PUT /api/data/:dataId`
-  - Protected endpoint untuk mengubah data
-
-- `DELETE /api/data/:dataId`
-  - Protected endpoint untuk menghapus data
 
 ## Menjalankan Project
+
+1. Salin `.env.example` menjadi `.env`.
+2. Isi `DB_DSN`.
+3. Jalankan migration:
+
 ```powershell
-$env:DB_DSN="postgres://user:password@127.0.0.1:5432/dbname?sslmode=disable"
-$env:API_KEY="change-me"
 go run ./cmd/migrate up
+```
+
+4. Jalankan server:
+
+```powershell
 go run .
 ```
 
-Atau jika memakai `make`:
-
-```bash
-make migrate-up
-make run
-```
-
-## Testing
-Jalankan seluruh unit test:
+Contoh `DB_DSN`:
 
 ```powershell
-go test ./...
+$env:DB_DSN="postgres://user:password@127.0.0.1:5432/muslim_daily_api?sslmode=disable"
 ```
 
-Atau jika memakai `make`:
+## Migration
 
-```bash
-make test
-```
+Schema baru yang ditambahkan:
 
-Unit test saat ini mencakup:
-- helper
-- request ID helper
-- auth middleware
-- request/logging middleware
-- exception handler
-- service layer dengan `sqlmock`
+- tabel `duas`
+- tabel `prayer_times`
 
-## Database Migration
-Migration file disimpan di folder [migrations](c:/Users/VICTUS/OneDrive/Documents/TNOD/api/api-go-test/migrations).
+Seed awal juga disiapkan melalui migration agar endpoint langsung punya data setelah `migrate up`.
 
 Command yang tersedia:
 
 ```powershell
-go run ./cmd/migrate create add_users_table
+go run ./cmd/migrate create add_table_name
 go run ./cmd/migrate up
 go run ./cmd/migrate down
 go run ./cmd/migrate version
 go run ./cmd/migrate force 1
 ```
 
-Versi `make`:
+## Testing
 
-```bash
-make migrate-create NAME=add_users_table
-make migrate-up
-make migrate-down
-make migrate-version
-make migrate-force VERSION=1
+Jalankan seluruh test:
+
+```powershell
+go test ./...
 ```
 
-Keterangan:
-- `create <name>` membuat file migration `.up.sql` dan `.down.sql` baru
-- `up` menjalankan semua migration yang belum diaplikasikan
-- `down` rollback 1 step migration terakhir
-- `version` melihat versi migration aktif
-- `force <version>` dipakai jika status migration dirty dan perlu dipaksa ke versi tertentu
+Test saat ini mencakup:
 
-Migration pertama yang tersedia:
-- `000001_create_data_table.up.sql`
-  - membuat tabel `data`
-  - membuat index `idx_data_status`
+- helper dan request ID
+- middleware request/auth
+- exception handler
+- Muslim service
+- Muslim controller
+- Muslim repository dengan `sqlmock`
 
-## Auth
-Untuk endpoint write, kirim header:
+## OpenAPI
 
-```text
-X-API-Key: change-me
-```
+Spesifikasi endpoint tersedia di `apispec.yaml`.
